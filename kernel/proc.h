@@ -91,6 +91,8 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  int tracing;                 // 为0表示不对系统调用进行跟踪，为1表示进行跟踪
+
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

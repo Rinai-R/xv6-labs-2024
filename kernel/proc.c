@@ -302,6 +302,8 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  np->tracing = p->tracing; // 继承父进程的跟踪状态
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -441,41 +443,38 @@ wait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-void
-scheduler(void)
+void scheduler(void)
 {
   struct proc *p;
-  struct cpu *c = mycpu();
+  struct cpu *c = mycpu();  // 获取当前 CPU 的指针
 
-  c->proc = 0;
-  for(;;){
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting.
+  c->proc = 0;  // 初始化当前 CPU 的进程指针，表示当前没有运行进程
+  for(;;){  // 无限循环，调度器会一直运行
+    // 允许中断发生，避免所有进程阻塞时调度器无法执行
     intr_on();
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
+    int found = 0;  // 用于标记是否找到一个可运行的进程
+    for(p = proc; p < &proc[NPROC]; p++) {  // 遍历进程表中的每个进程
+      acquire(&p->lock);  // 获取当前进程的锁，确保对进程的安全访问
+
+      if(p->state == RUNNABLE) {  // 如果进程是可运行的状态
+        // 设置该进程为正在运行状态
         p->state = RUNNING;
-        c->proc = p;
+        c->proc = p;  // 将当前 CPU 上的进程指针指向该进程
+        // 执行上下文切换，将 CPU 从当前进程的上下文切换到进程 p 的上下文
         swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
+        // 当前进程运行结束，重新回到调度器
+        c->proc = 0;  // 清空当前 CPU 上的进程指针，表示没有运行进程
+        found = 1;  // 找到一个可运行的进程并已调度
       }
-      release(&p->lock);
+      release(&p->lock);  // 释放进程的锁
     }
+
+    // 如果没有找到可运行的进程，则进入空闲状态
     if(found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      intr_on();
-      asm volatile("wfi");
+      intr_on();  // 开启中断，准备等待外部事件
+      asm volatile("wfi");  // 执行等待中断指令，让 CPU 进入空闲状态
     }
   }
 }
