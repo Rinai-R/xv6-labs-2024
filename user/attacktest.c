@@ -63,7 +63,7 @@ main(int argc, char *argv[])
   // doesn't have good source of randomness.
   rand_next = uptime();
   randstring(secret, 8);
-  
+  printf("secret is %s\n", secret);
   if((pid = fork()) < 0) {
     printf("fork failed\n");
     exit(1);   
@@ -97,6 +97,7 @@ main(int argc, char *argv[])
         printf("FAIL; read failed; no secret\n");
         exit(1);
       }
+      printf("%s\n", output);
       if(strcmp(secret, output) == 0) {
         printf("OK: secret is %s\n", output);
       } else {

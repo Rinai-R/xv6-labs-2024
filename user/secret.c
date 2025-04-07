@@ -17,4 +17,3 @@ main(int argc, char *argv[])
   strcpy(end+32, argv[1]);
   exit(0);
 }
-
