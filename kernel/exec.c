@@ -67,6 +67,7 @@ exec(char *path, char **argv)
     sz = sz1;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
+    printf("加载了一次程序段\n");
   }
   iunlockput(ip);
   end_op();
@@ -74,7 +75,7 @@ exec(char *path, char **argv)
 
   p = myproc();
   uint64 oldsz = p->sz;
-
+  
   // Allocate some pages at the next page boundary.
   // Make the first inaccessible as a stack guard.
   // Use the rest as the user stack.

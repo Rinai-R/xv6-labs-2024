@@ -4,10 +4,7 @@
 #include "kernel/riscv.h"
 
 
-char *prefix = "my very very very secret pw is:   ";
-
-int
-main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
   char *end = sbrk(PGSIZE*32);
   end = end + 16 * PGSIZE;
   printf("secret: %s\n", end+32);

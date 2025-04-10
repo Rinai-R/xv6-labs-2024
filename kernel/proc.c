@@ -178,23 +178,26 @@ proc_pagetable(struct proc *p)
 {
   pagetable_t pagetable;
 
-  // An empty page table.
+  // 分配一个新的空页表（根页表）
+  // `uvmcreate` 为进程创建一个空的页表，初始化为根页表，分配一页物理内存。
   pagetable = uvmcreate();
   if(pagetable == 0)
     return 0;
 
-  // map the trampoline code (for system call return)
-  // at the highest user virtual address.
-  // only the supervisor uses it, on the way
-  // to/from user space, so not PTE_U.
+  // 映射 trampoline 代码（用于系统调用返回）
+  // trampoline 是在用户虚拟地址空间的最顶端，负责在系统调用的上下文切换时跳转到内核。
+  // 该映射设置为只读且可执行（PTE_R | PTE_X），因为 trampoline 是内核代码
+  // 注意：此区域仅用于系统调用跳转，并不是用户程序直接访问的，因此没有 PTE_U 标志
   if(mappages(pagetable, TRAMPOLINE, PGSIZE,
               (uint64)trampoline, PTE_R | PTE_X) < 0){
     uvmfree(pagetable, 0);
     return 0;
   }
 
-  // map the trapframe page just below the trampoline page, for
-  // trampoline.S.
+  // 映射 trapframe 页，位于 trampoline 页面下方
+  // trapframe 用于保存进程的上下文（寄存器值、堆栈指针等），
+  // 这是在系统调用或中断时保存进程状态的地方，供 trampoline 使用。
+  // 这里的映射设置为可读写（PTE_R | PTE_W），因为操作系统需要在该页写入和读取数据。
   if(mappages(pagetable, TRAPFRAME, PGSIZE,
               (uint64)(p->trapframe), PTE_R | PTE_W) < 0){
     uvmunmap(pagetable, TRAMPOLINE, 1, 0);
