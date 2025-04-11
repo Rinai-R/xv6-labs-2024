@@ -10,6 +10,7 @@
 #include "defs.h"
 
 void freerange(void *pa_start, void *pa_end);
+void superinit(void);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
@@ -21,13 +22,17 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem, supermem;
+
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  freerange(end, (void*)SUPERBASE);
+  superinit();
+  // 这里的end是内核结束的地方，之后直到SUPERBASE都是普通页表可以分配的空间
+  // 而SUPERBASE到PHYSTOP是超级页表可以分配的空间
 }
 
 void
@@ -38,6 +43,31 @@ freerange(void *pa_start, void *pa_end)
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
     kfree(p);
 }
+// 超级页的释放，直接根据kfree照葫芦画瓢就行了。
+void superfree(void *pa) {
+  struct run *r;
+
+  if(((uint64)pa % SUPERPGSIZE) != 0 || (char*)pa < (char*)SUPERBASE || (uint64)pa >= PHYSTOP)
+    panic("superfree");
+  
+  memset(pa, 1, SUPERPGSIZE);
+  
+  r = (struct run*)pa;
+
+  acquire(&supermem.lock);
+  r->next = supermem.freelist;
+  supermem.freelist = r;
+  release(&supermem.lock);
+}
+
+void superinit(){
+  initlock(&supermem.lock, "supermem");
+  char *p;
+  p = (char*)SUPERPGROUNDUP((uint64)SUPERBASE);
+  for(; p + SUPERPGSIZE <= (char*)PHYSTOP; p += SUPERPGSIZE)
+    superfree(p);
+}
+
 
 // Free the page of physical memory pointed at by pa,
 // which normally should have been returned by a
@@ -79,4 +109,18 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+void* superalloc(void) {
+  struct run *r;
+  
+  acquire(&supermem.lock);
+  r = supermem.freelist;
+  if(r)
+    supermem.freelist = r->next;
+  release(&supermem.lock);
+
+  if(r)
+    memset((char*)r, 5, SUPERPGSIZE); // fill with junk
+  return (void*)r; 
 }

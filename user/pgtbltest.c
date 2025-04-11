@@ -121,8 +121,9 @@ superpg_test()
   testname = "superpg_test";
   
   char *end = sbrk(N);
+  printf("sbrk end %p\n", end);
   if (end == 0 || end == (char*)0xffffffffffffffff)
-    err("sbrk failed");
+    err("sbrk failed1111");
   
   uint64 s = SUPERPGROUNDUP((uint64) end);
   supercheck(s);
