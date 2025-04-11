@@ -43,7 +43,7 @@
 #define KERNBASE 0x80000000L
 #define PHYSTOP (KERNBASE + 128*1024*1024)
 // 这里超级页的空间
-#define SUPERBASE (KERNBASE + 112*1024*1024)
+#define SUPERBASE (KERNBASE + 12 * 512 * PGSIZE)
 
 // map the trampoline page to the highest address,
 // in both user and kernel space.
