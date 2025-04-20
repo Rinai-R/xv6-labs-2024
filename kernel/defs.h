@@ -192,3 +192,5 @@ void            virtio_disk_intr(void);
 // lab printf.c
 
 void            backtrace(void);
+int             sigalarm(int, void (*handler)());
+int             sigreturn(void);

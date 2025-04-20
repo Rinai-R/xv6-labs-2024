@@ -503,3 +503,20 @@ sys_pipe(void)
   }
   return 0;
 }
+
+
+// lab traps: sigalarm, sigreturn
+
+uint64
+sys_sigalarm(void) {
+  int n;
+  uint64 handler;
+  argint(0, &n);
+  argaddr(1, &handler);
+  return sigalarm(n, (void(*)())(handler));
+}
+
+uint64
+sys_sigreturn(void) {
+  return sigreturn();
+}
