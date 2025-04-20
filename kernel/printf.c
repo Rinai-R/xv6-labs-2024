@@ -176,3 +176,21 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+
+void backtrace(void){
+  printf("barcktrace:\n");
+
+  uint64 ra,fp = r_fp();//frame pointer -> address
+  uint64 pre_fp = *((uint64*)(fp - 16));
+
+  while(PGROUNDDOWN(fp)==PGROUNDDOWN(pre_fp)){
+    ra = *(uint64 *)(fp - 8);
+    printf("%p\n",(void*)ra);
+    fp = pre_fp;
+    pre_fp = *((uint64*)(fp - 16));
+  }
+
+  ra = *(uint64 *)(fp - 8);
+  printf("%p\n",(void*)ra);
+}
