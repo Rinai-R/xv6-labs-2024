@@ -642,8 +642,10 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 {
   struct proc *p = myproc();
   if(user_dst){
+    // printf("%d %ld %p %ld\n", user_dst, dst, src, len);
     return copyout(p->pagetable, dst, src, len);
   } else {
+    // printf("kernel %ld %p %ld\n", dst, src, len);
     memmove((char *)dst, src, len);
     return 0;
   }

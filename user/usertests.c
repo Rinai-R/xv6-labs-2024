@@ -88,28 +88,34 @@ copyout(char *s)
       printf("open(README) failed\n");
       exit(1);
     }
+    printf("pass1\n");
     int n = read(fd, (void*)addr, 8192);
+    printf("正常返回");
     if(n > 0){
       printf("read(fd, %p, 8192) returned %d, not -1 or 0\n", (void*)addr, n);
       exit(1);
     }
     close(fd);
+    printf("pass1\n");
 
     int fds[2];
     if(pipe(fds) < 0){
       printf("pipe() failed\n");
       exit(1);
     }
+    printf("pass1\n");
     n = write(fds[1], "x", 1);
     if(n != 1){
       printf("pipe write failed\n");
       exit(1);
     }
+    printf("pass1\n");
     n = read(fds[0], (void*)addr, 8192);
     if(n > 0){
       printf("read(pipe, %p, 8192) returned %d, not -1 or 0\n", (void*)addr, n);
       exit(1);
     }
+    printf("pass1\n");
     close(fds[0]);
     close(fds[1]);
   }
