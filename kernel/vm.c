@@ -374,7 +374,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       return -1;
     
     if(iscowpage(pagetable, va0)) {
-      startcowcopy(pagetable, va0);
+      copyonwrite(pagetable, va0);
     }
     pte = walk(pagetable, va0, 0);
     if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 || (*pte & PTE_W) == 0)
@@ -480,12 +480,12 @@ iscowpage(pagetable_t pagetable, uint64 va){
 }
 
 void
-startcowcopy(pagetable_t pagetable, uint64 va) {
+copyonwrite(pagetable_t pagetable, uint64 va) {
   va = PGROUNDDOWN((uint64)va);
   pte_t* pte = walk(pagetable, va, 0);
   uint64 pa = PTE2PA(*pte);
 
-  void* new = cowcopy_pa((void*)pa);
+  void* new = copyPA((void*)pa);
   if((uint64)new == 0){
     panic("cowcopy_pa err\n");
     exit(-1);

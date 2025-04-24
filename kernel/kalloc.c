@@ -57,8 +57,8 @@ kfree(void *pa)
     panic("kfree");
 
   acquire(&ref_lock);
-  pm_ref[getRefIdx((uint64)pa)] --;
-  if(pm_ref[getRefIdx((uint64)pa)] <= 0){
+  pm_ref[refidx((uint64)pa)] --;
+  if(pm_ref[refidx((uint64)pa)] <= 0){
     // Fill with junk to catch dangling refs.
     memset(pa, 1, PGSIZE);
     r = (struct run*)pa;
@@ -87,35 +87,35 @@ kalloc(void)
 
   if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
-    pm_ref[getRefIdx((uint64)r)] = 1;
+    pm_ref[refidx((uint64)r)] = 1;
   }
   return (void*)r;
 }
 
 
 uint64
-getRefIdx(uint64 pa){
-  return (pa-KERNBASE)/PGSIZE;
+refidx(uint64 pa){
+  return (pa - KERNBASE) / PGSIZE;
 }
 
 void
 refup(void* pa){
   acquire(&ref_lock);
-  pm_ref[getRefIdx((uint64)pa)] ++;
+  pm_ref[refidx((uint64)pa)] ++;
   release(&ref_lock);
 }
 
 void
 refdown(void* pa){
   acquire(&ref_lock);
-  pm_ref[getRefIdx((uint64)pa)] --;
+  pm_ref[refidx((uint64)pa)] --;
   release(&ref_lock);
 }
 
 void*
-cowcopy_pa(void* pa){
+copyPA(void* pa){
   acquire(&ref_lock);
-  if(pm_ref[getRefIdx((uint64)pa)] <= 1){
+  if(pm_ref[refidx((uint64)pa)] <= 1){
     release(&ref_lock);
     return pa;
   }
@@ -130,7 +130,7 @@ cowcopy_pa(void* pa){
   memmove((void*)new, pa, PGSIZE);
 
   // 变更引用计数
-  pm_ref[getRefIdx((uint64)pa)] --;
+  pm_ref[refidx((uint64)pa)] --;
   release(&ref_lock);
   return (void*)new;
 }

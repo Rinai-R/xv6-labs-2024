@@ -191,8 +191,7 @@ void            virtio_disk_intr(void);
 
 void refdown(void* pa);
 void refup(void* pa);
-uint64 getRefIdx(uint64 pa);
-void* cowcopy_pa(void* pa);
-void startcowcopy(pagetable_t pagetable, uint64 va);
+uint64 refidx(uint64 pa);
+void* copyPA(void* pa);
+void copyonwrite(pagetable_t pagetable, uint64 va);
 int iscowpage(pagetable_t pagetable, uint64 va);
-int is_valid_user_va(uint64 va);
