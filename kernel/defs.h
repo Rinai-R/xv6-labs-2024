@@ -193,6 +193,6 @@ void refdown(void* pa);
 void refup(void* pa);
 uint64 getRefIdx(uint64 pa);
 void* cowcopy_pa(void* pa);
-void startcowcopy(uint64 va);
-int iscowpage(uint64 va);
+void startcowcopy(pagetable_t pagetable, uint64 va);
+int iscowpage(pagetable_t pagetable, uint64 va);
 int is_valid_user_va(uint64 va);

@@ -367,14 +367,16 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
   pte_t *pte;
 
   while(len > 0){
+    // printf("dst:%ld ", dstva);
     va0 = PGROUNDDOWN(dstva);
+    // printf("va:%ld ", va0);
     if(va0 >= MAXVA)
       return -1;
     
-    if(iscowpage(va0)) {
-      startcowcopy(va0);
+    if(iscowpage(pagetable, va0)) {
+      startcowcopy(pagetable, va0);
     }
-    
+
     pte = walk(pagetable, va0, 0);
     if(pte == 0 || (*pte & PTE_V) == 0 || (*pte & PTE_U) == 0)
       return -1;
@@ -463,26 +465,25 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 
 
 int
-iscowpage(uint64 va){
-  struct proc* p = myproc();
-  printf("sz %ld va %ld\n", p->sz, va);
+iscowpage(pagetable_t pagetable, uint64 va){
   va = PGROUNDDOWN((uint64)va);
-  if(va >= MAXVA)  // 要在walk之前
+  if(va >= MAXVA){
     return 0;
-  pte_t* pte = walk(p->pagetable,va,0);
-  if(pte == 0)
+  }
+  pte_t* pte = walk(pagetable, va, 0);
+  if(pte == 0){
     return 0;
-  if((va < p->sz)&& (*pte & PTE_COW) && (*pte & PTE_V) && (*pte & PTE_U))
+  }
+  if((*pte & PTE_COW) && (*pte & PTE_V) && (*pte & PTE_U))
     return 1;
-  else
-    return 0;
+
+  return 0;
 }
 
 void
-startcowcopy(uint64 va){
-  struct proc* p = myproc();
+startcowcopy(pagetable_t pagetable, uint64 va) {
   va = PGROUNDDOWN((uint64)va);
-  pte_t* pte = walk(p->pagetable,va,0);
+  pte_t* pte = walk(pagetable, va, 0);
   uint64 pa = PTE2PA(*pte);
 
   void* new = cowcopy_pa((void*)pa);
@@ -492,9 +493,9 @@ startcowcopy(uint64 va){
   }
 
   uint64 flags = (PTE_FLAGS(*pte) | PTE_W) & (~PTE_COW);
-  uvmunmap(p->pagetable, va, 1, 0);
+  uvmunmap(pagetable, va, 1, 0);
 
-  if(mappages(p->pagetable, va, PGSIZE, (uint64)new, flags) == -1){
+  if(mappages(pagetable, va, PGSIZE, (uint64)new, flags) == -1){
     kfree(new);
     panic("cow mappages failed");
   }
