@@ -478,7 +478,6 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
     return 0;
   if(off + n > ip->size)
     n = ip->size - off;
-
   for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
     // printf("readi: off %d, n %d, tot %d\n", off, n, tot);
     uint addr = bmap(ip, off/BSIZE);
@@ -493,7 +492,6 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
     }
     brelse(bp);
   }
-  // printf("正常退出");
   return tot;
 }
 
