@@ -23,6 +23,8 @@ struct {
   struct run *freelist;
 } kmem[NCPU];
 
+struct spinlock kmem_lock;
+
 char* kmem_lock_name[NCPU] = {
   "kmem1", "kmem2", "kmem3", "kmem4", "kmem5", "kmem6", "kmem7", "kmem8"
 };
@@ -30,6 +32,7 @@ char* kmem_lock_name[NCPU] = {
 void
 kinit()
 {
+  initlock(&kmem_lock, "kmem_lock");
   for(int i = 0; i < NCPU; i++) {
     initlock(&kmem[i].lock, kmem_lock_name[i]);
   }
@@ -84,6 +87,7 @@ kalloc(void)
 
   release(&kmem[cpu].lock);
   if(!r) {
+    acquire(&kmem_lock);
     int steal_pages = 0;
     for(int i = 0; i < NCPU; i++) {
       if (i == cpu) continue;
@@ -97,10 +101,11 @@ kalloc(void)
         acquire(&kmem[cpu].lock);
         newpage->next = kmem[cpu].freelist;
         kmem[cpu].freelist = newpage;
-        release(&kmem[cpu].lock);
         steal_pages ++;
+        release(&kmem[cpu].lock);
         // 窃取了 32 个页面，足够了，就不再偷了。
         if(steal_pages == 32) {
+          release(&kmem_lock);
           goto done;
         }
         acquire(&kmem[i].lock);
@@ -109,8 +114,10 @@ kalloc(void)
     }
     // 如果为 0，说明没有别的 CPU 有空闲页面，需要 panic。
     if(steal_pages == 0) {
+      release(&kmem_lock);
       return 0;
     }
+    release(&kmem_lock);
   }
 done:
   acquire(&kmem[cpu].lock);
