@@ -539,6 +539,7 @@ forkret(void)
   release(&myproc()->lock);
 
   if (first) {
+    printf("对他使用炎拳吧！\n");
     // File system initialization must be run in the context of a
     // regular process (e.g., because it calls sleep), and thus cannot
     // be run from main().
