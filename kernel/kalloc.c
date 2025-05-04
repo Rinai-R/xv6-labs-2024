@@ -65,7 +65,9 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
+  push_off();
   int cpu = cpuid();
+  pop_off();
   acquire(&kmem[cpu].lock);
   r->next = kmem[cpu].freelist;
   kmem[cpu].freelist = r;
@@ -79,15 +81,14 @@ void *
 kalloc(void)
 {
   struct run *r;
-
+  push_off();
   int cpu = cpuid();
+  pop_off();
   acquire(&kmem[cpu].lock);
 
   r = kmem[cpu].freelist;
 
-  release(&kmem[cpu].lock);
   if(!r) {
-    acquire(&kmem_lock);
     int steal_pages = 0;
     for(int i = 0; i < NCPU; i++) {
       if (i == cpu) continue;
@@ -98,14 +99,13 @@ kalloc(void)
         kmem[i].freelist = newpage->next; 
         release(&kmem[i].lock);
         // 处理窃取的链表
-        acquire(&kmem[cpu].lock);
+        // acquire(&kmem[cpu].lock);
         newpage->next = kmem[cpu].freelist;
         kmem[cpu].freelist = newpage;
         steal_pages ++;
-        release(&kmem[cpu].lock);
+        // release(&kmem[cpu].lock);
         // 窃取了 32 个页面，足够了，就不再偷了。
-        if(steal_pages == 32) {
-          release(&kmem_lock);
+        if(steal_pages == 128) {
           goto done;
         }
         acquire(&kmem[i].lock);
@@ -114,13 +114,12 @@ kalloc(void)
     }
     // 如果为 0，说明没有别的 CPU 有空闲页面，需要 panic。
     if(steal_pages == 0) {
-      release(&kmem_lock);
+      release(&kmem[cpu].lock);
       return 0;
     }
-    release(&kmem_lock);
   }
 done:
-  acquire(&kmem[cpu].lock);
+  // acquire(&kmem[cpu].lock);
   r = kmem[cpu].freelist;
 
   if(r)
