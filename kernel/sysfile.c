@@ -506,8 +506,8 @@ sys_pipe(void)
 }
 
 
-int sys_mmap(void) {
-  uint fd, prot, flags;
+uint64 sys_mmap(void) {
+  int fd, prot, flags;
   uint64 addr, len, offset;
   struct file* f;
   argaddr(0, &addr);
@@ -520,7 +520,7 @@ int sys_mmap(void) {
   if((!f->readable && (prot & (PROT_READ))) || (!f->writable && (prot & PROT_WRITE) && !(flags & MAP_PRIVATE))) {
     return -1;
   }
-  struct vma *new;
+  struct vma *new = 0;
   struct proc *p = myproc();
   uint64 vaend = MMAPEND;
 
@@ -534,7 +534,7 @@ int sys_mmap(void) {
     }
   }
   
-  if(new == 0) {
+  if(!new) {
     panic("莫得");
   }
   new->f = f;
@@ -545,11 +545,84 @@ int sys_mmap(void) {
   new->vastart = vaend - len;
   new->offset = offset;
   filedup(f);
-
   return new->vastart;
 }
 
+struct vma *checkvma(uint64 va) {
+  struct proc *p = myproc();
+  for(int i = 0;i < NVMA; i ++) {
+    struct vma *vv = &p->vmas[i];
+    // printf("%ld < %ld < %ld\n",vv->vastart, va, vv->vastart + vv->len);
+    if(vv->valid == 1 && va >= vv->vastart && va < vv->vastart + vv->len) {
+      return vv;
+    }
+  }
+  return 0;
+}
 
-int sys_munmap(void) {
+void lazyallocation(struct vma *v, uint64 va) {
+  struct proc *p = myproc();
+  void *pa = kalloc();
+  if(pa == 0) {
+    panic("莫得页了");
+  }
+  memset(pa, 0, PGSIZE);
   
+  // 读磁盘
+  begin_op();
+  ilock(v->f->ip);
+  readi(v->f->ip, 0, (uint64)pa, v->offset + PGROUNDDOWN(va - v->vastart), PGSIZE);
+  iunlock(v->f->ip);
+  end_op();
+
+  int perm = PTE_U;
+  if(v->prot & PROT_READ)
+    perm |= PTE_R;
+  if(v->prot & PROT_WRITE)
+    perm |= PTE_W;
+  if(v->prot & PROT_EXEC)
+    perm |= PTE_X;
+
+  if(mappages(p->pagetable, va, PGSIZE, (uint64)pa, PTE_R | PTE_W | PTE_U) < 0) {
+    panic("lazy mappages");
+  }
+  return;
+}
+
+uint64 sys_munmap(void) {
+  uint64 addr, len;
+  argaddr(0, &addr);
+  argaddr(1, &len);
+  
+  struct proc *p = myproc();
+  struct vma *v = checkvma(addr);
+  if(!v) {
+    return -1;
+  }
+
+  if(addr > v->vastart && addr + len < v->vastart + v->len) {
+    return -1;
+  }
+  uint64 addr_aligned = addr;
+  if(addr > v->vastart) {
+    addr_aligned = PGROUNDUP(addr);
+  }
+  int nunmap = len - (addr_aligned-addr); // nbytes to unmap
+  if(nunmap < 0)
+    nunmap = 0;
+  
+  vmaunmap(p->pagetable, addr_aligned, nunmap, v); // custom memory page unmap routine for mmapped pages.
+
+  if(addr <= v->vastart && addr + len > v->vastart) { // unmap at the beginning
+    v->offset += addr + len - v->vastart;
+    v->vastart = addr + len;
+  }
+  v->len -= len;
+
+  if(v->len <= 0) {
+    fileclose(v->f);
+    v->valid = 0;
+  }
+
+  return 0; 
 }

@@ -237,3 +237,8 @@ void            netinit(void);
 void            net_rx(char *buf, int len);
 
 #endif
+
+//lab9
+struct vma *checkvma(uint64 va);
+void lazyallocation(struct vma *v, uint64 va);
+void vmaunmap(pagetable_t pagetable, uint64 va, uint64 nbytes, struct vma *v);

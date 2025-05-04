@@ -146,6 +146,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  for(int i = 0;i < NVMA; i ++) {
+    p->vmas[i].valid = 0;
+  }
+
   return p;
 }
 
@@ -158,6 +162,10 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
+  for(int i = 0; i < NVMA; i++) {
+    struct vma *v = &p->vmas[i];
+    vmaunmap(p->pagetable, v->vastart, v->len, v);
+  }
   if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
@@ -308,6 +316,14 @@ fork(void)
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
 
+  for(i = 0; i < NVMA; i++) {
+    struct vma *v = &p->vmas[i];
+    if(v->valid) {
+      np->vmas[i] = *v;
+      filedup(v->f);
+    }
+  }
+
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -321,6 +337,7 @@ fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
+
 
   return pid;
 }
@@ -347,7 +364,6 @@ void
 exit(int status)
 {
   struct proc *p = myproc();
-
   if(p == initproc)
     panic("init exiting");
 
@@ -393,7 +409,6 @@ wait(uint64 addr)
   struct proc *pp;
   int havekids, pid;
   struct proc *p = myproc();
-
   acquire(&wait_lock);
 
   for(;;){
@@ -422,13 +437,11 @@ wait(uint64 addr)
         release(&pp->lock);
       }
     }
-
     // No point waiting if we don't have any children.
     if(!havekids || killed(p)){
       release(&wait_lock);
       return -1;
     }
-    
     // Wait for a child to exit.
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
