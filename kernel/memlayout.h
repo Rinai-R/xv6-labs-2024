@@ -57,3 +57,5 @@
 //   TRAPFRAME (p->trapframe, used by the trampoline)
 //   TRAMPOLINE (the same page as in the kernel)
 #define TRAPFRAME (TRAMPOLINE - PGSIZE)
+// 为 mmap 指定映射的地址空间的位置。
+#define MMAPEND TRAPFRAME
